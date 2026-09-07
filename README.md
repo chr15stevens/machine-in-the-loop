@@ -128,7 +128,14 @@ background. Browsers refuse to make noise until you have interacted with the pag
 "tap to enable alerts" pill sits in the status bar until you do.
 
 **With the page closed:** the server raises an OS notification itself, and clicking it
-opens the page. No dependencies — each platform already ships something that can do
+opens the page. On Windows it stays on screen until you act on it and makes a sound — a
+default toast from an unpackaged app shows for about five seconds, silently, and is not
+retained in the Action Center afterwards, so missing it means losing it. A second request
+replaces the first rather than stacking, matching the one-at-a-time UI.
+
+**A notification can never complete a request.** Its only action hands the URL to your
+browser; the Done button on the page is the sole way to close one. The MCP surface has no
+`complete` tool either, so an agent cannot press it for you. No dependencies — each platform already ships something that can do
 this, so it shells out rather than pulling in a library. Click-to-open is not uniformly
 available, and the startup banner tells you what your machine can actually do:
 

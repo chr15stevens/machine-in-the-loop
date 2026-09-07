@@ -36,20 +36,43 @@ ENABLED = os.environ.get("MITL_NOTIFY", "1").strip().lower() not in {"0", "false
 TITLE = "machine in the loop"
 _TIMEOUT = 20
 
+# scenario="reminder" plus duration="long" is load-bearing, not decoration. A
+# default toast from an unpackaged app shows for about five seconds, silently,
+# and — measured on Windows 11 — is not retained in the Action Center
+# afterwards, so missing it means losing it. A request you have not seen is the
+# one failure mode this whole feature exists to prevent, so the notification
+# stays on screen until acted on and makes a sound.
+#
+# Tag and Group mean a second request replaces the first rather than stacking:
+# the UI only ever shows one request at a time, and the notifications should
+# match that.
+#
+# The only action is "Open the page". Protocol activation hands the URL to the
+# browser and can do nothing else, so no notification — clicked, dismissed, or
+# ignored — can complete a request. Pressing Done on the page is the sole way
+# to close one, and there is deliberately no dismiss button here that could be
+# mistaken for one.
+#
 # Concatenated rather than interpolated: the values arrive as environment
 # variables, so nothing from a request text is ever parsed as PowerShell.
 _WINDOWS_SCRIPT = r"""
 $ErrorActionPreference = 'Stop'
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType=WindowsRuntime] | Out-Null
 [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType=WindowsRuntime] | Out-Null
-$xml = '<toast activationType="protocol" launch="' + $env:MITL_TOAST_URL + '">' +
+$xml = '<toast activationType="protocol" launch="' + $env:MITL_TOAST_URL + '" duration="long" scenario="reminder">' +
        '<visual><binding template="ToastGeneric">' +
        '<text>' + $env:MITL_TOAST_TITLE + '</text>' +
        '<text>' + $env:MITL_TOAST_BODY + '</text>' +
-       '</binding></visual></toast>'
+       '</binding></visual>' +
+       '<audio src="ms-winsoundevent:Notification.Reminder"/>' +
+       '<actions>' +
+       '<action content="Open the page" activationType="protocol" arguments="' + $env:MITL_TOAST_URL + '"/>' +
+       '</actions></toast>'
 $doc = New-Object Windows.Data.Xml.Dom.XmlDocument
 $doc.LoadXml($xml)
 $toast = New-Object Windows.UI.Notifications.ToastNotification $doc
+$toast.Tag = 'mitl-request'
+$toast.Group = 'mitl'
 $appId = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId).Show($toast)
 """
