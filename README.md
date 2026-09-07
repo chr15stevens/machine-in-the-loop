@@ -140,4 +140,9 @@ v0 is one button on purpose. The next honest increments:
 
 ## Licence
 
-MIT. See [LICENSE](LICENSE).
+LGPL-3.0-or-later. The full text is in [LICENSE](LICENSE); it applies on top of the
+GPL-3.0 text in [COPYING](COPYING), which is how the LGPL is written.
+
+In plain terms: fork it, run it, change it. If you distribute a modified version of
+*these files*, those changes stay under the same licence. Building something separate
+that talks to the API does not oblige you to license your own work.
