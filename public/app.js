@@ -43,13 +43,16 @@ const el = {
   logWrap: $('log-wrap'),
   logToggle: $('log-toggle'),
   log: $('log'),
+  alertHint: $('alert-hint'),
 };
 
 const POLL_MS = 1000;
+const BASE_TITLE = 'machine in the loop';
 
 let current = null; // the request on screen
-let shownId = null; // last id we buzzed for
+let shownId = null; // last id we alerted for
 let inFlight = false;
+let ready = false; // suppresses the alert for whatever is already open at load
 
 // ------------------------------------------------------------------ chrome
 
@@ -67,6 +70,83 @@ function buzz(pattern) {
     /* vibration is a nicety, never a requirement */
   }
 }
+
+// ------------------------------------------------------------------ alerting
+//
+// Three tiers, because the good one is not always available. Served over plain
+// HTTP to a LAN address — which is the normal way to use this from a phone —
+// the page is not a secure context, so the Notification API is absent and only
+// sound, vibration and the tab title are left. On localhost, or behind HTTPS,
+// the real notification comes back.
+
+let audio = null;
+
+function audioReady() {
+  return audio && audio.state === 'running';
+}
+
+// Browsers refuse to make noise until the user has interacted with the page,
+// so the first alert can only be armed, not fired.
+function armAudio() {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+  } catch {
+    audio = null;
+  }
+  el.alertHint.hidden = audioReady() || audio === null;
+}
+
+function beep() {
+  if (!audioReady()) return;
+  // Two short rising notes: audible across a room, unlike a single blip, and
+  // over in 260ms so it never becomes something to resent.
+  const now = audio.currentTime;
+  for (const [at, freq] of [[0, 660], [0.13, 880]]) {
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, now + at);
+    gain.gain.exponentialRampToValueAtTime(0.22, now + at + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.12);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(now + at);
+    osc.stop(now + at + 0.13);
+  }
+}
+
+function canNotify() {
+  return window.isSecureContext && 'Notification' in window && Notification.permission === 'granted';
+}
+
+function askToNotify() {
+  if (!window.isSecureContext || !('Notification' in window)) return;
+  if (Notification.permission === 'default') Notification.requestPermission();
+}
+
+function alertHuman(request) {
+  buzz([14, 60, 14]);
+  beep();
+  if (canNotify() && document.hidden) {
+    new Notification(BASE_TITLE, { body: request.text, tag: 'mitl-request', renotify: true });
+  }
+  if (document.hidden) document.title = `● ${request.text}`;
+}
+
+// Any interaction is consent enough to make noise later.
+for (const evt of ['pointerdown', 'keydown']) {
+  document.addEventListener(evt, () => {
+    armAudio();
+    askToNotify();
+  }, { once: true });
+}
+
+el.alertHint.addEventListener('click', armAudio);
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) document.title = BASE_TITLE;
+});
 
 function clockOf(iso) {
   const d = new Date(iso);
@@ -89,8 +169,10 @@ function render(requests) {
 
   if (current) {
     if (current.id !== shownId) {
+      // Don't alert for whatever was already open when the page loaded — you
+      // are looking at it.
+      if (ready) alertHuman(current);
       shownId = current.id;
-      buzz([14, 60, 14]); // a new request landed while the phone was in a pocket
     }
     el.text.textContent = current.text;
     el.note.textContent = current.note || '';
@@ -108,6 +190,7 @@ function render(requests) {
 
   renderLog(closed.slice(-25).reverse());
   tickElapsed();
+  ready = true;
 }
 
 function renderLog(items) {
@@ -211,6 +294,10 @@ async function refresh() {
     setConn('lost');
   }
 }
+
+// Surfaces the "tap to enable alerts" hint if the browser will not let us make
+// noise yet. Harmless when it will.
+armAudio();
 
 refresh();
 setInterval(refresh, POLL_MS);

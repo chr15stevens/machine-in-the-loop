@@ -45,9 +45,20 @@ Short. No preamble, no praise, no "when you get a chance".
 exists so you can stage a known sequence, not so you can dump a backlog. More than about
 three open at once and you have rebuilt a todo list, which is the thing this replaces.
 
+## How to wait
+
+`GET /api/completions?since={cursor}&timeout=90` blocks until the human presses the
+button, then returns what closed and a new `cursor`. Use it. Do not poll `/api/requests`
+in a tight loop — you will spend a request every few seconds to learn that a person is
+still walking to the kitchen.
+
+An empty `completed` list means the wait timed out, not that anything is wrong. Ask again
+with the same cursor. If you are still getting empty lists after several minutes, that is
+your answer: see "Never completed" below.
+
 ## How to read the response
 
-`GET /api/requests` gives you everything. The signal is in the timestamps:
+Each completed request carries `elapsed_seconds`. The signal is in the timestamps:
 
 - **Fast completion** — well-sized request. Keep this granularity.
 - **Slow completion** — either genuinely long, or it had activation cost. If several

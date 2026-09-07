@@ -24,10 +24,21 @@ not to be impressed by the requests.
 """
 
 import json
+import sys
 import urllib.error
 import urllib.request
 
-BASE = "http://localhost:4711"
+# Windows consoles still default to cp1252, and request text is arbitrary — a
+# controller will sooner or later issue one containing an em dash. Fix the
+# stream rather than restricting what a request may say.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+# 127.0.0.1, not "localhost": on Windows the latter resolves to ::1 first and
+# the IPv4 fallback costs ~2s per call, which is a long time when you are in a
+# loop. Browsers handle the dual stack fine, so the printed URLs still say
+# localhost.
+BASE = "http://127.0.0.1:4711"
 
 REQUESTS = [
     ("Stand up", None),

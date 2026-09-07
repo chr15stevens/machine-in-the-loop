@@ -56,6 +56,24 @@ body {
   margin-left: 12px;
 }
 
+.hint {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 10px;
+  margin-right: 4px;
+  color: var(--warn);
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.hint:hover {
+  border-color: var(--warn);
+}
+
 .counter b {
   color: var(--dim);
   font-weight: 600;

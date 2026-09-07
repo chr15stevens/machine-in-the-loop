@@ -49,13 +49,14 @@ python examples/seed.py
 
 ## The API
 
-Three endpoints. Two of them are one line.
+Four endpoints. Three of them are trivial; the fourth is where the loop lives.
 
 | Method | Path | Who calls it |
 | --- | --- | --- |
 | `GET` | `/api/requests` | anyone — the full list, oldest first |
 | `POST` | `/api/requests` | the **controller** — issue a request |
 | `POST` | `/api/requests/{id}/complete` | the **human** — the button |
+| `GET` | `/api/completions` | the **controller** — block until the button is pressed |
 
 A request:
 
@@ -65,12 +66,67 @@ A request:
   "text": "Stand up and refill your water bottle",
   "note": null,
   "issued_at": "2026-09-07T08:31:29.480758Z",
-  "completed_at": null
+  "completed_at": null,
+  "elapsed_seconds": null
 }
 ```
 
 `completed_at: null` means open. The UI shows the oldest open one and nothing else.
 Interactive docs at `/docs`.
+
+### Waiting for the human
+
+A human takes minutes. Polling that gap burns a request every few seconds to learn
+nothing, so `/api/completions` blocks instead:
+
+```bash
+curl "http://127.0.0.1:4711/api/completions?since=0&timeout=90"
+```
+
+It returns as soon as something is completed, with a `cursor` to pass back as `since`
+next time. If the wait times out it returns an empty list, which is not an error — the
+human is simply still working. Ask again.
+
+```json
+{ "cursor": 3, "completed": [ { "id": 3, "elapsed_seconds": 47.2, "...": "..." } ] }
+```
+
+`elapsed_seconds` is the point. It is the only sensor the controller has.
+
+### The loop
+
+```bash
+python examples/controller.py
+```
+
+Issues one request, blocks until it is done, and picks the next size from how long the
+last one took — fast means step up, slow means step down. The decision is a heuristic,
+not a model, so the repo needs no API key; `choose_next` is the seam where a model call
+replaces the if-statement.
+
+### Getting the human's attention
+
+Three tiers, because the good one is not always available:
+
+1. **Vibration and a two-note chime** while the tab is open. Works everywhere, needs no
+   permission. Browsers refuse to make noise until you have interacted with the page, so
+   a "tap to enable alerts" pill appears in the status bar until you do.
+2. **A real notification**, when the page is a secure context — `localhost`, or anything
+   behind HTTPS. Served over plain HTTP to a LAN address, which is the normal way to use
+   this from a phone, the Notification API simply is not there. That is a browser rule,
+   not something the app can opt out of. Put it behind HTTPS (mkcert, a tunnel, Tailscale)
+   and notifications come back.
+3. **Push to a phone in your pocket**, via [ntfy](https://ntfy.sh):
+
+   ```bash
+   MITL_NTFY_TOPIC=some-string-only-you-know python main.py
+   ```
+
+   Install the ntfy app, subscribe to the same topic, and requests arrive on the lock
+   screen. **This sends the request text off your machine** to ntfy.sh, which is why it
+   is off by default. Point `MITL_NTFY_SERVER` at your own ntfy instance to keep it local.
+   Topics are unauthenticated: anyone who guesses yours can read your requests, so pick
+   something long.
 
 ### Notes on the design
 
@@ -82,6 +138,9 @@ Interactive docs at `/docs`.
 - **No auth.** It binds `0.0.0.0` so your phone can reach it. That means anyone on
   your network can issue you requests. On a home network that is fine and funny. On
   café wifi it is not — see below.
+- **Use `127.0.0.1`, not `localhost`, from Python clients.** On Windows `localhost`
+  resolves to `::1` first and the IPv4 fallback costs about two seconds per call. The
+  examples already do this. Browsers are unaffected.
 - **No lock.** Every handler is `async def`, so they share one event-loop thread.
 - **Completion is idempotent.** A double-tap returns the existing record rather than
   erroring, because the human's intent already landed.
@@ -136,7 +195,9 @@ v0 is one button on purpose. The next honest increments:
       loop and needs no native app.
 - [ ] **A real MCP server** — so any Claude client is a controller with no glue code.
 - [ ] **Persistence** — JSONL append log, so sessions can be reviewed afterwards.
-- [ ] **Push** — a web push subscription, so the phone can be in a pocket.
+- [x] **Waking the controller** — `/api/completions` long-polls instead of spinning.
+- [x] **Waking the human** — chime, vibration, notification where permitted, optional
+      ntfy push.
 
 ## Licence
 
