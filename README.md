@@ -120,13 +120,26 @@ replaces the if-statement.
 
 ### Getting the human's attention
 
-All on-device. Nothing is sent anywhere:
+All on-device. Nothing is sent anywhere.
 
-- **A two-note chime and a vibration** when a request arrives. Browsers refuse to make
-  noise until you have interacted with the page, so a "tap to enable alerts" pill sits in
-  the status bar until you do.
-- **A desktop notification** when the tab is in the background, plus the request text in
-  the tab title.
+**With the page open:** a two-note chime and a vibration when a request arrives, the
+request text in the tab title, and a browser notification when the tab is in the
+background. Browsers refuse to make noise until you have interacted with the page, so a
+"tap to enable alerts" pill sits in the status bar until you do.
+
+**With the page closed:** the server raises an OS notification itself, and clicking it
+opens the page. No dependencies — each platform already ships something that can do
+this, so it shells out rather than pulling in a library. Click-to-open is not uniformly
+available, and the startup banner tells you what your machine can actually do:
+
+| | Notification | Click opens the page |
+| --- | --- | --- |
+| Windows | toast, via PowerShell | yes — protocol activation |
+| macOS | `terminal-notifier` if installed | yes |
+| macOS | `osascript` otherwise | no — it cannot attach a click target |
+| Linux | `notify-send` | only if your notification daemon supports actions |
+
+Set `MITL_NOTIFY=0` to silence them.
 
 Push to a phone is deliberately out of scope: it would mean either exposing the server
 beyond this machine or relaying through a third party, and neither is worth it yet.

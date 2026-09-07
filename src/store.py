@@ -16,6 +16,7 @@ import asyncio
 import itertools
 from datetime import datetime, timezone
 
+from src import notify
 from src.models import Completions, Request
 
 # Longest a controller may block waiting for the human. Beyond a few minutes,
@@ -55,6 +56,9 @@ def issue(text: str, note: str | None = None) -> Request:
     """Add a request to the queue. The controller's verb."""
     request = Request(id=next(_ids), text=text.strip(), note=note, issued_at=_now())
     REQUESTS.append(request)
+    # Here rather than in an adapter, so HTTP and MCP both get it. Returns
+    # immediately — the notification is raised on its own thread.
+    notify.notify(request.text)
     return request
 
 
