@@ -44,7 +44,7 @@ python examples/seed.py
 
 ## The API
 
-Four endpoints. Three of them are trivial; the fourth is where the loop lives.
+Four endpoints plus the MCP surface. Three are trivial; the fourth is where the loop lives.
 
 | Method | Path | Who calls it |
 | --- | --- | --- |
@@ -52,6 +52,7 @@ Four endpoints. Three of them are trivial; the fourth is where the loop lives.
 | `POST` | `/api/requests` | the **controller** — issue a request |
 | `POST` | `/api/requests/{id}/complete` | the **human** — the button |
 | `GET` | `/api/completions` | the **controller** — block until the button is pressed |
+| `*` | `/mcp` | the **agent** — the same verbs as MCP tools |
 
 A request:
 
@@ -88,7 +89,25 @@ human is simply still working. Ask again.
 
 `elapsed_seconds` is the point. It is the only sensor the controller has.
 
-### The loop
+### As an MCP server
+
+The agent surface is mounted into the same app, so there is one process and one
+store. Point any MCP client at:
+
+```
+http://127.0.0.1:4711/mcp
+```
+
+Three tools: `issue_request`, `await_completion`, `list_requests` — the same verbs
+as the HTTP API. `await_completion` genuinely blocks, so the agent waits on one
+connection instead of polling.
+
+The tool descriptions in `src/mcp_server.py` are the contract. Nothing loads
+`AGENT.md` into an agent's context at call time, so the request-sizing rules and
+the hard limits are written into the docstrings, where the model actually reads
+them.
+
+### The loop, without an agent
 
 ```bash
 python examples/controller.py
@@ -115,7 +134,7 @@ beyond this machine or relaying through a third party, and neither is worth it y
 
 ### Notes on the design
 
-- **In-memory.** `REQUESTS` is a module-level list. Restarting wipes it, which is
+- **In-memory.** `src/store.py` owns two module-level lists. Restarting wipes them, which is
   correct for v0: a session is a sitting, not a record. Persistence is a v0.2 problem
   and should not be a database when a JSONL file will do.
 - **Polling, not websockets.** The client polls every second. Against an in-memory store
@@ -125,7 +144,11 @@ beyond this machine or relaying through a third party, and neither is worth it y
 - **Use `127.0.0.1`, not `localhost`, from Python clients.** On Windows `localhost`
   resolves to `::1` first and the IPv4 fallback costs about two seconds per call. The
   examples already do this. Browsers are unaffected.
-- **No lock.** Every handler is `async def`, so they share one event-loop thread.
+- **One store, two surfaces.** `src/api.py` (HTTP) and `src/mcp_server.py` (MCP) are thin
+  adapters over `src/store.py`; neither touches the lists, so the rules cannot drift.
+- **No lock.** Everything is `async def` on one event-loop thread — which is also why the
+  MCP server is mounted rather than run as a second process: the long-poll wakes waiters
+  through an `asyncio.Event`, and that only works on a shared loop.
 - **Completion is idempotent.** A double-tap returns the existing record rather than
   erroring, because the human's intent already landed.
 
@@ -175,7 +198,7 @@ v0 is one button on purpose. The next honest increments:
       not just give orders.
 - [ ] **Photos** — `<input type="file" capture="environment">` closes the perception
       loop and needs no native app.
-- [ ] **A real MCP server** — so any Claude client is a controller with no glue code.
+- [x] **A real MCP server** — mounted into the same app; any MCP client is a controller.
 - [ ] **Persistence** — JSONL append log, so sessions can be reviewed afterwards.
 - [x] **Waking the controller** — `/api/completions` long-polls instead of spinning.
 - [x] **Waking the human** — chime, vibration, and a desktop notification, all local.
