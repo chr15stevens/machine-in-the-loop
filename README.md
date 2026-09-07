@@ -130,18 +130,36 @@ background. Browsers refuse to make noise until you have interacted with the pag
 **With the page closed:** the server raises an OS notification itself, and clicking it
 opens the page. On Windows it stays on screen until you act on it and makes a sound — a
 default toast from an unpackaged app shows for about five seconds, silently, and is not
-retained in the Action Center afterwards, so missing it means losing it. A second request
-replaces the first rather than stacking, matching the one-at-a-time UI.
+retained in the Action Center afterwards, so missing it means losing it. Each request
+gets its own toast rather than replacing the last, so nothing is lost while you are away.
+
+> **Windows: this creates a Start Menu entry.** On startup the server writes
+> `machine in the loop.lnk` into your Start Menu. It is not a convenience — Windows
+> routes a notification click back to the app that posted it, identified by an
+> AppUserModelID, and the only way an unpackaged app can declare one is a Start Menu
+> shortcut carrying that property. Without it Windows shows the toast and silently
+> drops the click. This is what an ordinary installer does; it only looks unusual here
+> because this project has no install step.
+>
+> The shortcut points at your interpreter and this repo, so it doubles as a launcher.
+> Nothing else is written, and no paths are hardcoded — they are derived at startup, so
+> moving the repo repairs itself the next time you run it.
+>
+> To remove it: `python main.py --uninstall-notifications`, or delete the `.lnk`.
+> Notifications keep working afterwards; only the click stops opening the page.
 
 **A notification can never complete a request.** Its only action hands the URL to your
 browser; the Done button on the page is the sole way to close one. The MCP surface has no
-`complete` tool either, so an agent cannot press it for you. No dependencies — each platform already ships something that can do
-this, so it shells out rather than pulling in a library. Click-to-open is not uniformly
-available, and the startup banner tells you what your machine can actually do:
+`complete` tool either, so an agent cannot press it for you.
+
+Notifications themselves need no libraries — each platform already ships something that
+can raise one, so this shells out. The only dependency is `pywin32` on Windows, used
+solely to write the Start Menu shortcut above. Click-to-open is not uniformly available,
+and the startup banner tells you what your machine can actually do:
 
 | | Notification | Click opens the page |
 | --- | --- | --- |
-| Windows | toast, via PowerShell | yes — protocol activation |
+| Windows | toast, via PowerShell | yes — once the Start Menu entry exists |
 | macOS | `terminal-notifier` if installed | yes |
 | macOS | `osascript` otherwise | no — it cannot attach a click target |
 | Linux | `notify-send` | only if your notification daemon supports actions |

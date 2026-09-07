@@ -1,3 +1,8 @@
 fastapi>=0.115
 uvicorn[standard]>=0.30
 mcp>=2.1
+
+# Windows only, and only for one thing: stamping an AppUserModelID onto a Start
+# Menu shortcut, which is what lets a notification click open the page. Posting
+# the notification itself is plain PowerShell and needs nothing.
+pywin32; sys_platform == "win32"

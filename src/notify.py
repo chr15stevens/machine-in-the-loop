@@ -28,6 +28,7 @@ import sys
 import threading
 from xml.sax.saxutils import escape
 
+from src import shortcut
 from src.config import APP_URL
 
 # Set MITL_NOTIFY=0 to silence OS notifications.
@@ -75,8 +76,7 @@ $doc.LoadXml($xml)
 $toast = New-Object Windows.UI.Notifications.ToastNotification $doc
 $toast.Tag = $env:MITL_TOAST_TAG
 $toast.Group = 'mitl'
-$appId = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
-[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId).Show($toast)
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($env:MITL_TOAST_APPID).Show($toast)
 """
 
 
@@ -85,7 +85,9 @@ def capability() -> str:
     if not ENABLED:
         return "off — MITL_NOTIFY=0"
     if sys.platform == "win32":
-        return "on — click opens the page"
+        if shortcut.installed():
+            return "on — click opens the page"
+        return "on — click does nothing (app identity not registered)"
     if sys.platform == "darwin":
         if shutil.which("terminal-notifier"):
             return "on — click opens the page"
@@ -132,6 +134,10 @@ def _windows(title: str, body: str, url: str, tag: str) -> None:
         "MITL_TOAST_URL": escape(url, {'"': "&quot;"}),
         # Windows rejects a Tag over 64 characters, and an empty one is fine.
         "MITL_TOAST_TAG": tag[:64],
+        # Our own identity when the Start Menu shortcut is registered, so
+        # the click reaches the browser; otherwise a built-in id that still
+        # shows the toast but drops the click.
+        "MITL_TOAST_APPID": shortcut.aumid(),
     }
     subprocess.run(
         ["powershell", "-NoProfile", "-NonInteractive", "-Command", "-"],
