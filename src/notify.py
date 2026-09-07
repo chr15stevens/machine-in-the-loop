@@ -43,9 +43,11 @@ _TIMEOUT = 20
 # one failure mode this whole feature exists to prevent, so the notification
 # stays on screen until acted on and makes a sound.
 #
-# Tag and Group mean a second request replaces the first rather than stacking:
-# the UI only ever shows one request at a time, and the notifications should
-# match that.
+# Each request gets its own Tag, so toasts stack rather than replace one
+# another — every request stays visible until you deal with it. Group keeps
+# them collected together in the Action Center. Reusing a single Tag would
+# make each new request overwrite the last, which is a one-line change if the
+# pile ever gets annoying.
 #
 # The only action is "Open the page". Protocol activation hands the URL to the
 # browser and can do nothing else, so no notification — clicked, dismissed, or
@@ -71,7 +73,7 @@ $xml = '<toast activationType="protocol" launch="' + $env:MITL_TOAST_URL + '" du
 $doc = New-Object Windows.Data.Xml.Dom.XmlDocument
 $doc.LoadXml($xml)
 $toast = New-Object Windows.UI.Notifications.ToastNotification $doc
-$toast.Tag = 'mitl-request'
+$toast.Tag = $env:MITL_TOAST_TAG
 $toast.Group = 'mitl'
 $appId = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId).Show($toast)
@@ -93,19 +95,24 @@ def capability() -> str:
     return "off — notify-send not found"
 
 
-def notify(body: str, url: str = APP_URL, title: str = TITLE) -> None:
-    """Raise a notification. Returns immediately; never raises."""
+def notify(body: str, url: str = APP_URL, title: str = TITLE, tag: str = "") -> None:
+    """
+    Raise a notification. Returns immediately; never raises.
+
+    `tag` distinguishes one notification from another on Windows, so passing a
+    unique value per request makes them stack rather than overwrite.
+    """
     if not ENABLED:
         return
     threading.Thread(
-        target=_dispatch, args=(title, body, url), daemon=True
+        target=_dispatch, args=(title, body, url, tag), daemon=True
     ).start()
 
 
-def _dispatch(title: str, body: str, url: str) -> None:
+def _dispatch(title: str, body: str, url: str, tag: str) -> None:
     try:
         if sys.platform == "win32":
-            _windows(title, body, url)
+            _windows(title, body, url, tag)
         elif sys.platform == "darwin":
             _macos(title, body, url)
         else:
@@ -117,12 +124,14 @@ def _dispatch(title: str, body: str, url: str) -> None:
         pass
 
 
-def _windows(title: str, body: str, url: str) -> None:
+def _windows(title: str, body: str, url: str, tag: str) -> None:
     env = {
         **os.environ,
         "MITL_TOAST_TITLE": escape(title),
         "MITL_TOAST_BODY": escape(body),
         "MITL_TOAST_URL": escape(url, {'"': "&quot;"}),
+        # Windows rejects a Tag over 64 characters, and an empty one is fine.
+        "MITL_TOAST_TAG": tag[:64],
     }
     subprocess.run(
         ["powershell", "-NoProfile", "-NonInteractive", "-Command", "-"],

@@ -58,7 +58,7 @@ def issue(text: str, note: str | None = None) -> Request:
     REQUESTS.append(request)
     # Here rather than in an adapter, so HTTP and MCP both get it. Returns
     # immediately — the notification is raised on its own thread.
-    notify.notify(request.text)
+    notify.notify(request.text, tag=f"request-{request.id}")
     return request
 
 
