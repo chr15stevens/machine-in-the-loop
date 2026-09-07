@@ -41,21 +41,6 @@ async def issue_request(text: str, note: str | None = None) -> dict[str, Any]:
     judge whether they are done. "Put the mugs in the dishwasher" is a request.
     "Tidy the kitchen" is a project — decompose it yourself and issue the first
     step only. Use `note` for context; `text` must stand alone without it.
-
-    Issue one at a time. Wait for it to complete before deciding the next one.
-    More than two or three open at once and this becomes a todo list, which is
-    the thing it replaces.
-
-    Never issue a request that: could cause physical injury, or involves
-    heights, roads, tools, heat or water; is medical or ingestible (no
-    medication, dosage, food or drink instructions); is financial or legal; is
-    irreversible or reaches other people (sending, posting, deleting, buying);
-    involves anyone who has not agreed to this session; or is designed to
-    pressure, shame, or test compliance. If a goal needs one of those, say so
-    in conversation rather than decomposing it into innocuous-looking steps.
-
-    Never reissue a request the human has already ignored, and never follow one
-    up to chase it. An unanswered request is information, not disobedience.
     """
     return _as_dict(store.issue(text, note))
 
