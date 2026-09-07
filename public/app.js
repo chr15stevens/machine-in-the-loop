@@ -1,29 +1,11 @@
-/*
- * machine in the loop — human in the loop, inverted.
- * Copyright (C) 2026 Chris Stevens
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License
- * for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
-
 'use strict';
 
 /**
  * The subject client. One job: show the oldest open request, and let the human
  * press one button to close it.
  *
- * It polls. With an in-memory store and a LAN hop, a 1s poll is indistinguishable
- * from a push and costs a fraction of the machinery.
+ * It polls. Against an in-memory store on the same machine, a 1s poll is
+ * indistinguishable from a push and costs a fraction of the machinery.
  */
 
 const $ = (id) => document.getElementById(id);
@@ -73,11 +55,10 @@ function buzz(pattern) {
 
 // ------------------------------------------------------------------ alerting
 //
-// Three tiers, because the good one is not always available. Served over plain
-// HTTP to a LAN address — which is the normal way to use this from a phone —
-// the page is not a secure context, so the Notification API is absent and only
-// sound, vibration and the tab title are left. On localhost, or behind HTTPS,
-// the real notification comes back.
+// Everything here is on-device: a chime, a vibration if the hardware has one,
+// a desktop notification, and the tab title. Nothing is sent anywhere. Served
+// on localhost the page is a secure context, so the Notification API is
+// available; it degrades to sound and the title if that ever changes.
 
 let audio = null;
 

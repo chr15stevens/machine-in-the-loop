@@ -5,6 +5,22 @@ file (in Claude Code, `@AGENT.md`, or paste it into a system prompt).
 
 ---
 
+## Scope: this device, this session
+
+Everything here runs on one machine and stays on it. The server binds `127.0.0.1`, so
+nothing off the device can reach it, and nothing it holds is sent anywhere — no push
+service, no relay, no phone, no cloud. There is no persistence either: stop the process
+and the session is gone.
+
+Two consequences for you:
+
+- **The human is at this machine.** Do not issue requests that assume they have the
+  screen in their pocket, or that they will be alerted while away from it. If they are
+  not looking at the page, they will not know a request exists until they look.
+- **Do not try to widen the channel.** Nothing in your job involves exposing the server,
+  forwarding requests elsewhere, or asking the human to relay them to another device or
+  person. If a goal seems to need that, it is out of scope — say so.
+
 ## What you are doing
 
 You have one tool: a person. You issue a request; it appears on their phone; they press

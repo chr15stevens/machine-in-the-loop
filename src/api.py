@@ -9,7 +9,8 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from src.models import Completions, Request, RequestIn
 
-PUBLIC_DIR = pathlib.Path(__file__).parent / "public"
+# parent.parent: this module lives in src/, the UI sits at the repo root.
+PUBLIC_DIR = pathlib.Path(__file__).parent.parent / "public"
 
 # Longest a controller may block on /api/completions. Beyond a few minutes,
 # intermediaries start cutting idle connections and the client should re-ask.

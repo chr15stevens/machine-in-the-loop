@@ -3,8 +3,8 @@
 **Human-in-the-loop, inverted. The model runs the loop; you are the hands.**
 
 Normally an agent calls `bash`, gets a clean string back, and plans its next move.
-This swaps the tool for a person. The agent issues a request, it appears on your
-phone in large type, and you press one button when it is done.
+This swaps the tool for a person. The agent issues a request, it appears on screen
+in large type, and you press one button when it is done.
 
 The interesting part is not the app — it is what happens to the agent's planning.
 Its tool is now high-latency, non-deterministic, refusable, and embodied. It has to
@@ -24,16 +24,15 @@ pip install -r requirements.txt
 python main.py
 ```
 
-It prints a `localhost` URL and a LAN URL. Open the LAN one on your phone — that is
-the point of the thing. Then, from anywhere:
+It binds `127.0.0.1` and prints one URL. Open it, then from another terminal:
 
 ```bash
-curl -X POST http://localhost:4711/api/requests \
+curl -X POST http://127.0.0.1:4711/api/requests \
   -H 'content-type: application/json' \
   -d '{"text": "Stand up and refill your water bottle"}'
 ```
 
-It is on your phone within a second. Press **Done**.
+It is on screen within a second. Press **Done**.
 
 To see it move, seed a short session:
 
@@ -102,38 +101,27 @@ replaces the if-statement.
 
 ### Getting the human's attention
 
-Three tiers, because the good one is not always available:
+All on-device. Nothing is sent anywhere:
 
-1. **Vibration and a two-note chime** while the tab is open. Works everywhere, needs no
-   permission. Browsers refuse to make noise until you have interacted with the page, so
-   a "tap to enable alerts" pill appears in the status bar until you do.
-2. **A real notification**, when the page is a secure context — `localhost`, or anything
-   behind HTTPS. Served over plain HTTP to a LAN address, which is the normal way to use
-   this from a phone, the Notification API simply is not there. That is a browser rule,
-   not something the app can opt out of. Put it behind HTTPS (mkcert, a tunnel, Tailscale)
-   and notifications come back.
-3. **Push to a phone in your pocket**, via [ntfy](https://ntfy.sh):
+- **A two-note chime and a vibration** when a request arrives. Browsers refuse to make
+  noise until you have interacted with the page, so a "tap to enable alerts" pill sits in
+  the status bar until you do.
+- **A desktop notification** when the tab is in the background, plus the request text in
+  the tab title.
 
-   ```bash
-   MITL_NTFY_TOPIC=some-string-only-you-know python main.py
-   ```
+Push to a phone is deliberately out of scope: it would mean either exposing the server
+beyond this machine or relaying through a third party, and neither is worth it yet.
 
-   Install the ntfy app, subscribe to the same topic, and requests arrive on the lock
-   screen. **This sends the request text off your machine** to ntfy.sh, which is why it
-   is off by default. Point `MITL_NTFY_SERVER` at your own ntfy instance to keep it local.
-   Topics are unauthenticated: anyone who guesses yours can read your requests, so pick
-   something long.
 
 ### Notes on the design
 
 - **In-memory.** `REQUESTS` is a module-level list. Restarting wipes it, which is
   correct for v0: a session is a sitting, not a record. Persistence is a v0.2 problem
   and should not be a database when a JSONL file will do.
-- **Polling, not websockets.** The client polls every second. Over a LAN hop with an
-  in-memory store that is indistinguishable from a push, at a fraction of the machinery.
-- **No auth.** It binds `0.0.0.0` so your phone can reach it. That means anyone on
-  your network can issue you requests. On a home network that is fine and funny. On
-  café wifi it is not — see below.
+- **Polling, not websockets.** The client polls every second. Against an in-memory store
+  on the same machine that is indistinguishable from a push, at a fraction of the machinery.
+- **This device only.** It binds `127.0.0.1`. Nothing off this machine can reach it,
+  which is why there is no auth to write and nothing to secure.
 - **Use `127.0.0.1`, not `localhost`, from Python clients.** On Windows `localhost`
   resolves to `::1` first and the IPv4 fallback costs about two seconds per call. The
   examples already do this. Browsers are unaffected.
@@ -170,8 +158,6 @@ The subject is a person, so the controller has limits that a `bash` tool does no
   sending messages, posting, deleting, buying.
 - **Pressure is out of scope.** No streaks, no shaming copy, no escalation when a
   request goes unanswered. An unanswered request is information, not disobedience.
-- **Bind to localhost** (`host="127.0.0.1"` in `main.py`) if you are not on a network
-  you trust. There is no auth by design, and adding some is a fine first PR.
 
 If you point this at someone other than yourself, they get the button and you get the
 keyboard — never the reverse without them agreeing to it first, out loud, that session.
@@ -192,14 +178,5 @@ v0 is one button on purpose. The next honest increments:
 - [ ] **A real MCP server** — so any Claude client is a controller with no glue code.
 - [ ] **Persistence** — JSONL append log, so sessions can be reviewed afterwards.
 - [x] **Waking the controller** — `/api/completions` long-polls instead of spinning.
-- [x] **Waking the human** — chime, vibration, notification where permitted, optional
-      ntfy push.
+- [x] **Waking the human** — chime, vibration, and a desktop notification, all local.
 
-## Licence
-
-LGPL-3.0-or-later. The full text is in [LICENSE](LICENSE); it applies on top of the
-GPL-3.0 text in [COPYING](COPYING), which is how the LGPL is written.
-
-In plain terms: fork it, run it, change it. If you distribute a modified version of
-*these files*, those changes stay under the same licence. Building something separate
-that talks to the API does not oblige you to license your own work.
