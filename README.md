@@ -14,10 +14,6 @@ one instruction at a time, no queue to stare at, no decision to make.
 
 > v0 is deliberately tiny: **one screen, one button, one endpoint that matters.**
 
-<sub>On the name: HCI already uses "machine-in-the-loop" for systems where a machine
-assists a human who stays in control. Here the principal is reversed — the machine
-decides, the human acts. The collision is deliberate.</sub>
-
 ---
 
 ## Quickstart
