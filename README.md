@@ -16,6 +16,9 @@ not less: it owns the plan, and the constraint it was working around is gone.
 
 This repo is the minimal apparatus for testing whether that trade is worth making.
 
+![The request screen: one instruction in large type, one button, and a log of what has
+been completed](docs/screenshot.png)
+
 ---
 
 ## Quickstart
