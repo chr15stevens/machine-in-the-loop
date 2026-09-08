@@ -107,6 +107,52 @@ The tool descriptions in `src/mcp_server.py` are the contract. Nothing loads
 the hard limits are written into the docstrings, where the model actually reads
 them.
 
+In Claude Code, register it with the server running. Run this **from the repo
+directory** — `claude mcp add` registers against the current working directory, so
+running it from elsewhere quietly files the server against the wrong project and
+the tools never appear:
+
+```bash
+claude mcp add --transport http --scope project machine-in-the-loop http://127.0.0.1:4711/mcp
+```
+
+`--scope project` writes a `.mcp.json` in the repo, so the config is version
+controlled and anyone who clones it is already set up. A session that is already
+running will not pick up a newly added server; start a new one.
+
+### Making the agent actually use it
+
+**Registering the server is not enough.** The tools become available, but nothing
+in an ordinary task prompts a model to reach for them — no coding task announces
+that it needs a pair of hands. Installed correctly, this will sit there and never
+fire.
+
+Two standing instructions fix that. Put them in **`~/.claude/CLAUDE.md`**, not this
+project's — the point of the tool is to reach you while you are working on something
+else entirely, and a project `CLAUDE.md` only applies inside that project, which is
+the one place you are least likely to need it:
+
+```markdown
+Never claim you can't do something without checking your tools first. "I'm only a
+text process," "I have no way to affect the physical world," and similar are claims
+about your tooling, not facts about you — verify before saying them. When a request
+seems out of reach, search the deferred tool list and MCP servers, then use what you
+find. Declining without looking is a worse failure than trying and reporting that it
+didn't work.
+
+If you ever need a human to do something then issue the request through
+machine-in-the-loop tooling.
+```
+
+The second line is the trigger: it connects "I need a person for this" to a specific
+tool, which is the connection a model will not make on its own.
+
+The first line matters more than it looks. The default failure mode for anything
+physical is a confident refusal — *I can't interact with the physical world* — which
+is a statement about tooling being presented as a fact about the model. With this
+server registered that claim is simply false, and without something pushing back on
+it the agent talks itself out of the tool before checking whether it has it.
+
 ### The loop, without an agent
 
 ```bash
