@@ -14,11 +14,7 @@ an executor that can actually perform them should remove the overhead and free
 capacity for higher-level planning. The intent is to grant the agent more autonomy,
 not less: it owns the plan, and the constraint it was working around is gone.
 
-This makes the human a tool with unusual properties — latency in minutes rather than
-milliseconds, non-deterministic, refusable, and holding state the agent cannot read.
-Planning against it requires decomposing goals into single physical acts, sequencing
-them, and treating latency as the only feedback signal. This repo is the minimal
-apparatus for testing whether that trade is worth making.
+This repo is the minimal apparatus for testing whether that trade is worth making.
 
 ---
 
