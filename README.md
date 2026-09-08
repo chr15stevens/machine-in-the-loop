@@ -267,9 +267,6 @@ keyboard — not the reverse, and not without their agreement that session.
 
 - [ ] **"Can't do this"** — a refusal path with a reason string the controller reads.
       Currently an unwanted request can only be ignored.
-- [ ] **Observations** — let the human send text back, so the agent can ask questions.
-- [ ] **Photos** — `<input type="file" capture="environment">` closes the perception
-      loop without a native app.
 - [ ] **Persistence** — JSONL append log, so sessions can be reviewed afterwards.
 - [x] **MCP server** — mounted into the same app.
 - [x] **Waking the controller** — `/api/completions` long-polls instead of spinning.
