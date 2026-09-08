@@ -11,13 +11,72 @@ cope with a tool that takes minutes to return.
 
 ## Quickstart
 
+Three steps. All of them are required — after step 2 the tools exist but nothing
+will call them.
+
+### 1. Run the server
+
 ```bash
 python -m venv .venv && .venv/Scripts/activate  # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 python main.py
 ```
 
-Binds `127.0.0.1` and prints one URL. Open it, then from another terminal:
+Binds `127.0.0.1` and prints one URL. Open it — that page is where requests appear
+and the only place they can be completed. Leave the server running; the steps below
+need it up.
+
+### 2. Register the MCP server
+
+```bash
+claude mcp add --transport http --scope user machine-in-the-loop http://127.0.0.1:4711/mcp
+```
+
+`--scope user` makes it available in every project. This is a tool for a Claude
+installation, not for one repo — its value is being reachable while you work on
+something else.
+
+### 3. Tell the agent to use it
+
+Registering the server makes the tools available; it does not make a model reach for
+them. No ordinary task announces that it needs a pair of hands, so without this step
+a correct install sits idle indefinitely.
+
+Add to `~/.claude/CLAUDE.md` — the user-level file, not a project one, for the same
+reason as `--scope user`:
+
+```markdown
+Never claim you can't do something without checking your tools first. "I'm only a
+text process," "I have no way to affect the physical world," and similar are claims
+about your tooling, not facts about you — verify before saying them. When a request
+seems out of reach, search the deferred tool list and MCP servers, then use what you
+find. Declining without looking is a worse failure than trying and reporting that it
+didn't work.
+
+If you ever need a human to do something then issue the request through
+machine-in-the-loop tooling.
+```
+
+The second line connects "I need a person" to a specific tool. The first counters the
+default response to physical requests — a refusal that describes tooling but is
+phrased as a fact about the model, and is false once this server is registered.
+
+### Check it works
+
+Start a **new** Claude Code session — one already running will not pick up a newly
+registered server — and ask for something that needs hands:
+
+```
+Make me a coffee.
+```
+
+It should call `issue_request`, the request should appear on the page and as an OS
+notification, and the agent should block on `await_completion` until you press
+**Done**.
+
+---
+
+## Driving it without an agent
 
 ```bash
 curl -X POST http://127.0.0.1:4711/api/requests \
@@ -25,11 +84,16 @@ curl -X POST http://127.0.0.1:4711/api/requests \
   -d '{"text": "Stand up and refill your water bottle"}'
 ```
 
-Press **Done**. To seed a short session:
+Seed a short session, or run a controller loop that adapts to how long you take:
 
 ```bash
 python examples/seed.py
+python examples/controller.py
 ```
+
+`controller.py` issues one request, blocks until it is done, and picks the next size
+from the last one's latency. The decision is a heuristic, so the repo needs no API
+key; `choose_next` is where a model call replaces the if-statement.
 
 ---
 
@@ -75,67 +139,20 @@ A timeout returns an empty list — not an error; call again with the same curso
 Default block is 90s, ceiling 300s. Over the ceiling the HTTP endpoint returns 422;
 the MCP tool clamps instead. `elapsed_seconds` is the controller's only signal.
 
-### As an MCP server
+### The MCP surface
 
 Mounted into the same app: one process, one store, one event loop.
 
-```
-http://127.0.0.1:4711/mcp
-```
-
 Tools: `issue_request`, `await_completion`, `list_requests`. There is no `complete`
 tool — an agent cannot press the button.
-
-Register it with the server running:
-
-```bash
-claude mcp add --transport http --scope user machine-in-the-loop http://127.0.0.1:4711/mcp
-```
-
-`--scope user` makes it available in every project. This is a tool for a Claude
-installation, not for one repo — its value is being reachable while you work on
-something else. A session already running will not pick up a newly added server.
 
 The tool docstrings in `src/mcp_server.py` are the contract. Nothing loads
 `AGENT.md` at call time, so request sizing and the hard limits live in the
 docstrings.
 
-### Making the agent use it
+---
 
-Registering the server makes the tools available; it does not make a model reach
-for them. No ordinary task announces that it needs a pair of hands, so a correct
-install can sit idle indefinitely.
-
-Add to `~/.claude/CLAUDE.md` (not a project one — the tool exists to reach you while
-you work elsewhere):
-
-```markdown
-Never claim you can't do something without checking your tools first. "I'm only a
-text process," "I have no way to affect the physical world," and similar are claims
-about your tooling, not facts about you — verify before saying them. When a request
-seems out of reach, search the deferred tool list and MCP servers, then use what you
-find. Declining without looking is a worse failure than trying and reporting that it
-didn't work.
-
-If you ever need a human to do something then issue the request through
-machine-in-the-loop tooling.
-```
-
-The second line connects "I need a person" to a specific tool. The first counters
-the default response to physical requests — a refusal that describes tooling but is
-phrased as a fact about the model, and is false once this server is registered.
-
-### The loop, without an agent
-
-```bash
-python examples/controller.py
-```
-
-Issues one request, blocks until it is done, and picks the next size from how long
-the last took. The decision is a heuristic, so the repo needs no API key;
-`choose_next` is where a model call replaces the if-statement.
-
-### Notifications
+## Notifications
 
 All on-device.
 
@@ -181,7 +198,9 @@ shortcut.
 Push to a phone is out of scope: it requires either exposing the server beyond this
 machine or relaying through a third party.
 
-### Design notes
+---
+
+## Design notes
 
 - **In-memory.** `src/store.py` owns two module-level lists. Restarting wipes them:
   a session is a sitting, not a record.
