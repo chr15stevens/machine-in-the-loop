@@ -48,6 +48,18 @@ body {
   flex: 0 0 auto;
 }
 
+/* The one place the app names itself, so a notification and this page are
+   visibly the same thing. Opts out of the bar's uppercasing: the name is
+   written "Machine in the loop", not shouted. */
+.wordmark {
+  text-transform: none;
+  letter-spacing: -0.01em;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
 .bar-spacer {
   flex: 1;
 }
@@ -98,6 +110,14 @@ body {
 
 .dot[data-state="connecting"] {
   background: var(--warn);
+}
+
+/* On a narrow screen the name and the counters matter more than the word for
+   a state the dot already shows in colour. */
+@media (max-width: 460px) {
+  #conn-label {
+    display: none;
+  }
 }
 
 /* ------------------------------------------------------------- stage */
