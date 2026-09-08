@@ -271,3 +271,9 @@ keyboard — not the reverse, and not without their agreement that session.
 - [x] **MCP server** — mounted into the same app.
 - [x] **Waking the controller** — `/api/completions` long-polls instead of spinning.
 - [x] **Waking the human** — chime, vibration, and OS notifications, all local.
+
+---
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
