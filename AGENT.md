@@ -1,6 +1,6 @@
 # Controller contract
 
-Instructions for an agent driving a human through **machine in the loop**. Point your agent at this
+Instructions for an agent driving a human through **Machine in the loop**. Point your agent at this
 file (in Claude Code, `@AGENT.md`, or paste it into a system prompt).
 
 ---

@@ -34,7 +34,7 @@ from src.config import APP_URL
 # Set MITL_NOTIFY=0 to silence OS notifications.
 ENABLED = os.environ.get("MITL_NOTIFY", "1").strip().lower() not in {"0", "false", "no"}
 
-TITLE = "machine in the loop"
+TITLE = "Machine in the loop"
 _TIMEOUT = 20
 
 # scenario="reminder" plus duration="long" is load-bearing, not decoration. A
@@ -75,7 +75,7 @@ $doc = New-Object Windows.Data.Xml.Dom.XmlDocument
 $doc.LoadXml($xml)
 $toast = New-Object Windows.UI.Notifications.ToastNotification $doc
 $toast.Tag = $env:MITL_TOAST_TAG
-$toast.Group = 'mitl'
+$toast.Group = 'machine-in-the-loop'
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($env:MITL_TOAST_APPID).Show($toast)
 """
 

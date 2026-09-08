@@ -21,7 +21,7 @@ from mcp.server import MCPServer
 from src import store
 from src.models import Request
 
-mcp = MCPServer("machine in the loop")
+mcp = MCPServer("Machine in the loop")
 
 
 def _as_dict(request: Request) -> dict[str, Any]:

@@ -1,4 +1,4 @@
-# machine in the loop
+# Machine in the loop
 
 **Human-in-the-loop, inverted. The model runs the loop; you are the hands.**
 
@@ -134,7 +134,7 @@ retained in the Action Center afterwards, so missing it means losing it. Each re
 gets its own toast rather than replacing the last, so nothing is lost while you are away.
 
 > **Windows: this creates a Start Menu entry.** On startup the server writes
-> `machine in the loop.lnk` into your Start Menu. It is not a convenience — Windows
+> `Machine in the loop.lnk` into your Start Menu. It is not a convenience — Windows
 > routes a notification click back to the app that posted it, identified by an
 > AppUserModelID, and the only way an unpackaged app can declare one is a Start Menu
 > shortcut carrying that property. Without it Windows shows the toast and silently

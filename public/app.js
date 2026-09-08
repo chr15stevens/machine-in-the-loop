@@ -29,7 +29,7 @@ const el = {
 };
 
 const POLL_MS = 1000;
-const BASE_TITLE = 'machine in the loop';
+const BASE_TITLE = 'Machine in the loop';
 
 let current = null; // the request on screen
 let shownId = null; // last id we alerted for
@@ -110,7 +110,7 @@ function alertHuman(request) {
   buzz([14, 60, 14]);
   beep();
   if (canNotify() && document.hidden) {
-    new Notification(BASE_TITLE, { body: request.text, tag: 'mitl-request', renotify: true });
+    new Notification(BASE_TITLE, { body: request.text, tag: 'machine-in-the-loop-request', renotify: true });
   }
   if (document.hidden) document.title = `● ${request.text}`;
 }

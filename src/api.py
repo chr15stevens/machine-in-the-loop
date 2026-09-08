@@ -40,7 +40,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="machine in the loop",
+    title="Machine in the loop",
     description="Local-only directive board. The human is the tool being called.",
     version="0.1.0",
     lifespan=lifespan,

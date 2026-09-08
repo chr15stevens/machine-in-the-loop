@@ -31,7 +31,7 @@ import pathlib
 import sys
 
 AUMID = "machine-in-the-loop"
-SHORTCUT_NAME = "machine in the loop.lnk"
+SHORTCUT_NAME = "Machine in the loop.lnk"
 
 # Windows shows toasts posted under this built-in identity but drops the click.
 # Used only when our own shortcut is absent, so notifications still arrive.
@@ -135,6 +135,24 @@ def _matches_current_paths() -> bool:
         return False
 
 
+def _stale_case_name() -> pathlib.Path | None:
+    """
+    A shortcut differing from ours only by case.
+
+    Windows paths are case-insensitive, so `exists()` is True for a file left
+    over from an earlier spelling and writing over it does not necessarily
+    correct the name shown in the Start Menu. Such a file has to be deleted
+    before the new one is written.
+    """
+    folder = shortcut_path().parent
+    if not folder.is_dir():
+        return None
+    for entry in folder.iterdir():
+        if entry.name != SHORTCUT_NAME and entry.name.lower() == SHORTCUT_NAME.lower():
+            return entry
+    return None
+
+
 def ensure() -> str:
     """
     Create or repair the shortcut. Returns a short status for the banner.
@@ -144,7 +162,8 @@ def ensure() -> str:
     """
     if not supported():
         return "not needed on this platform"
-    if shortcut_path().exists() and _matches_current_paths():
+    stale = _stale_case_name()
+    if stale is None and shortcut_path().exists() and _matches_current_paths():
         return "registered"
 
     try:
@@ -159,7 +178,7 @@ def ensure() -> str:
         link.SetPath(target)
         link.SetArguments(args)
         link.SetWorkingDirectory(str(REPO_ROOT))
-        link.SetDescription("machine in the loop")
+        link.SetDescription("Machine in the loop")
 
         # The part WScript.Shell cannot do, and the whole reason this module
         # exists: stamp the identity onto the shortcut.
@@ -168,6 +187,8 @@ def ensure() -> str:
         store.Commit()
 
         shortcut_path().parent.mkdir(parents=True, exist_ok=True)
+        if stale is not None:
+            stale.unlink(missing_ok=True)
         link.QueryInterface(pythoncom.IID_IPersistFile).Save(str(shortcut_path()), 0)
     except Exception as exc:  # noqa: BLE001 - never block startup over a shortcut
         return f"could not register ({type(exc).__name__}) — clicks will not open the page"

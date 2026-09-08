@@ -19,7 +19,7 @@ if __name__ == "__main__":
     # See src/shortcut.py, and the README for how to remove it.
     registration = shortcut.ensure()
 
-    print("\n  machine in the loop\n")
+    print("\n  Machine in the loop\n")
     print(f"  open              http://localhost:{PORT}")
     print(f"  api docs          http://localhost:{PORT}/docs")
     print(f"  mcp               http://127.0.0.1:{PORT}/mcp")
