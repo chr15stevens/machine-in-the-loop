@@ -268,6 +268,7 @@ keyboard — not the reverse, and not without their agreement that session.
 - [ ] **"Can't do this"** — a refusal path with a reason string the controller reads.
       Currently an unwanted request can only be ignored.
 - [ ] **Persistence** — JSONL append log, so sessions can be reviewed afterwards.
+- [ ] **Proper installer** - cross platform installer.
 - [x] **MCP server** — mounted into the same app.
 - [x] **Waking the controller** — `/api/completions` long-polls instead of spinning.
 - [x] **Waking the human** — chime, vibration, and OS notifications, all local.
