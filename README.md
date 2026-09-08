@@ -2,17 +2,10 @@
 
 **Human-in-the-loop, inverted. The model runs the loop; you are the hands.**
 
-Normally an agent calls `bash`, gets a clean string back, and plans its next move.
-This swaps the tool for a person. The agent issues a request, it appears on screen
-in large type, and you press one button when it is done.
-
-The interesting part is not the app — it is what happens to the agent's planning.
-Its tool is now high-latency, non-deterministic, refusable, and embodied. It has to
-decompose goals into single physical acts, sequence them, and cope with a tool that
-takes four minutes to return. Meanwhile you get externalised executive function:
-one instruction at a time, no queue to stare at, no decision to make.
-
-> v0 is deliberately tiny: **one screen, one button, one endpoint that matters.**
+An agent issues a request, it appears on screen in large type, and you press one
+button when it is done. The agent's tool is a person: high-latency, refusable, and
+with state it cannot read. It has to decompose goals into single physical acts and
+cope with a tool that takes minutes to return.
 
 ---
 
@@ -24,7 +17,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-It binds `127.0.0.1` and prints one URL. Open it, then from another terminal:
+Binds `127.0.0.1` and prints one URL. Open it, then from another terminal:
 
 ```bash
 curl -X POST http://127.0.0.1:4711/api/requests \
@@ -32,9 +25,7 @@ curl -X POST http://127.0.0.1:4711/api/requests \
   -d '{"text": "Stand up and refill your water bottle"}'
 ```
 
-It is on screen within a second. Press **Done**.
-
-To see it move, seed a short session:
+Press **Done**. To seed a short session:
 
 ```bash
 python examples/seed.py
@@ -44,17 +35,13 @@ python examples/seed.py
 
 ## The API
 
-Four endpoints plus the MCP surface. Three are trivial; the fourth is where the loop lives.
-
-| Method | Path | Who calls it |
+| Method | Path | Caller |
 | --- | --- | --- |
 | `GET` | `/api/requests` | anyone — the full list, oldest first |
-| `POST` | `/api/requests` | the **controller** — issue a request |
-| `POST` | `/api/requests/{id}/complete` | the **human** — the button |
-| `GET` | `/api/completions` | the **controller** — block until the button is pressed |
-| `*` | `/mcp` | the **agent** — the same verbs as MCP tools |
-
-A request:
+| `POST` | `/api/requests` | controller — issue a request |
+| `POST` | `/api/requests/{id}/complete` | human — the button |
+| `GET` | `/api/completions` | controller — block until the button is pressed |
+| `*` | `/mcp` | agent — the same verbs as MCP tools |
 
 ```json
 {
@@ -67,70 +54,60 @@ A request:
 }
 ```
 
-`completed_at: null` means open. The UI shows the oldest open one and nothing else.
-Interactive docs at `/docs`.
+`completed_at: null` means open. The UI shows the oldest open request and nothing
+else. Interactive docs at `/docs`.
 
 ### Waiting for the human
 
-A human takes minutes. Polling that gap burns a request every few seconds to learn
-nothing, so `/api/completions` blocks instead:
+`/api/completions` blocks rather than making the caller poll:
 
 ```bash
 curl "http://127.0.0.1:4711/api/completions?since=0&timeout=90"
 ```
 
-It returns as soon as something is completed, with a `cursor` to pass back as `since`
-next time. If the wait times out it returns an empty list, which is not an error — the
-human is simply still working. Ask again.
+Returns as soon as something is completed, with a `cursor` to pass back as `since`.
+A timeout returns an empty list — not an error; call again with the same cursor.
 
 ```json
 { "cursor": 3, "completed": [ { "id": 3, "elapsed_seconds": 47.2, "...": "..." } ] }
 ```
 
-`elapsed_seconds` is the point. It is the only sensor the controller has.
+Default block is 90s, ceiling 300s. Over the ceiling the HTTP endpoint returns 422;
+the MCP tool clamps instead. `elapsed_seconds` is the controller's only signal.
 
 ### As an MCP server
 
-The agent surface is mounted into the same app, so there is one process and one
-store. Point any MCP client at:
+Mounted into the same app: one process, one store, one event loop.
 
 ```
 http://127.0.0.1:4711/mcp
 ```
 
-Three tools: `issue_request`, `await_completion`, `list_requests` — the same verbs
-as the HTTP API. `await_completion` genuinely blocks, so the agent waits on one
-connection instead of polling.
+Tools: `issue_request`, `await_completion`, `list_requests`. There is no `complete`
+tool — an agent cannot press the button.
 
-The tool descriptions in `src/mcp_server.py` are the contract. Nothing loads
-`AGENT.md` into an agent's context at call time, so the request-sizing rules and
-the hard limits are written into the docstrings, where the model actually reads
-them.
-
-In Claude Code, register it with the server running. Run this **from the repo
-directory** — `claude mcp add` registers against the current working directory, so
-running it from elsewhere quietly files the server against the wrong project and
-the tools never appear:
+Register it with the server running:
 
 ```bash
-claude mcp add --transport http --scope project machine-in-the-loop http://127.0.0.1:4711/mcp
+claude mcp add --transport http --scope user machine-in-the-loop http://127.0.0.1:4711/mcp
 ```
 
-`--scope project` writes a `.mcp.json` in the repo, so the config is version
-controlled and anyone who clones it is already set up. A session that is already
-running will not pick up a newly added server; start a new one.
+`--scope user` makes it available in every project. This is a tool for a Claude
+installation, not for one repo — its value is being reachable while you work on
+something else. A session already running will not pick up a newly added server.
 
-### Making the agent actually use it
+The tool docstrings in `src/mcp_server.py` are the contract. Nothing loads
+`AGENT.md` at call time, so request sizing and the hard limits live in the
+docstrings.
 
-**Registering the server is not enough.** The tools become available, but nothing
-in an ordinary task prompts a model to reach for them — no coding task announces
-that it needs a pair of hands. Installed correctly, this will sit there and never
-fire.
+### Making the agent use it
 
-Two standing instructions fix that. Put them in **`~/.claude/CLAUDE.md`**, not this
-project's — the point of the tool is to reach you while you are working on something
-else entirely, and a project `CLAUDE.md` only applies inside that project, which is
-the one place you are least likely to need it:
+Registering the server makes the tools available; it does not make a model reach
+for them. No ordinary task announces that it needs a pair of hands, so a correct
+install can sit idle indefinitely.
+
+Add to `~/.claude/CLAUDE.md` (not a project one — the tool exists to reach you while
+you work elsewhere):
 
 ```markdown
 Never claim you can't do something without checking your tools first. "I'm only a
@@ -144,14 +121,9 @@ If you ever need a human to do something then issue the request through
 machine-in-the-loop tooling.
 ```
 
-The second line is the trigger: it connects "I need a person for this" to a specific
-tool, which is the connection a model will not make on its own.
-
-The first line matters more than it looks. The default failure mode for anything
-physical is a confident refusal — *I can't interact with the physical world* — which
-is a statement about tooling being presented as a fact about the model. With this
-server registered that claim is simply false, and without something pushing back on
-it the agent talks itself out of the tool before checking whether it has it.
+The second line connects "I need a person" to a specific tool. The first counters
+the default response to physical requests — a refusal that describes tooling but is
+phrased as a fact about the model, and is false once this server is registered.
 
 ### The loop, without an agent
 
@@ -159,49 +131,23 @@ it the agent talks itself out of the tool before checking whether it has it.
 python examples/controller.py
 ```
 
-Issues one request, blocks until it is done, and picks the next size from how long the
-last one took — fast means step up, slow means step down. The decision is a heuristic,
-not a model, so the repo needs no API key; `choose_next` is the seam where a model call
-replaces the if-statement.
+Issues one request, blocks until it is done, and picks the next size from how long
+the last took. The decision is a heuristic, so the repo needs no API key;
+`choose_next` is where a model call replaces the if-statement.
 
-### Getting the human's attention
+### Notifications
 
-All on-device. Nothing is sent anywhere.
+All on-device.
 
-**With the page open:** a two-note chime and a vibration when a request arrives, the
-request text in the tab title, and a browser notification when the tab is in the
-background. Browsers refuse to make noise until you have interacted with the page, so a
-"tap to enable alerts" pill sits in the status bar until you do.
+**Page open:** a two-note chime and vibration, the request text in the tab title,
+and a browser notification when the tab is backgrounded. Browsers block audio until
+you interact with the page, so a "tap to enable alerts" pill sits in the status bar
+until you do.
 
-**With the page closed:** the server raises an OS notification itself, and clicking it
-opens the page. On Windows it stays on screen until you act on it and makes a sound — a
-default toast from an unpackaged app shows for about five seconds, silently, and is not
-retained in the Action Center afterwards, so missing it means losing it. Each request
-gets its own toast rather than replacing the last, so nothing is lost while you are away.
-
-> **Windows: this creates a Start Menu entry.** On startup the server writes
-> `Machine in the loop.lnk` into your Start Menu. It is not a convenience — Windows
-> routes a notification click back to the app that posted it, identified by an
-> AppUserModelID, and the only way an unpackaged app can declare one is a Start Menu
-> shortcut carrying that property. Without it Windows shows the toast and silently
-> drops the click. This is what an ordinary installer does; it only looks unusual here
-> because this project has no install step.
->
-> The shortcut points at your interpreter and this repo, so it doubles as a launcher.
-> Nothing else is written, and no paths are hardcoded — they are derived at startup, so
-> moving the repo repairs itself the next time you run it.
->
-> To remove it: `python main.py --uninstall-notifications`, or delete the `.lnk`.
-> Notifications keep working afterwards; only the click stops opening the page.
-
-**A notification can never complete a request.** Its only action hands the URL to your
-browser; the Done button on the page is the sole way to close one. The MCP surface has no
-`complete` tool either, so an agent cannot press it for you.
-
-Notifications themselves need no libraries — each platform already ships something that
-can raise one, so this shells out. The only dependency is `pywin32` on Windows, used
-solely to write the Start Menu shortcut above. Click-to-open is not uniformly available,
-and the startup banner tells you what your machine can actually do:
+**Page closed:** the server raises an OS notification; clicking it opens the page.
+On Windows it persists until acted on and plays a sound — a default toast from an
+unpackaged app shows for about five seconds, silently, and is not retained in the
+Action Center. Each request gets its own toast rather than replacing the last.
 
 | | Notification | Click opens the page |
 | --- | --- | --- |
@@ -210,80 +156,90 @@ and the startup banner tells you what your machine can actually do:
 | macOS | `osascript` otherwise | no — it cannot attach a click target |
 | Linux | `notify-send` | only if your notification daemon supports actions |
 
-Set `MITL_NOTIFY=0` to silence them.
+`MITL_NOTIFY=0` silences them. The startup banner reports what your machine can do.
 
-Push to a phone is deliberately out of scope: it would mean either exposing the server
-beyond this machine or relaying through a third party, and neither is worth it yet.
+**A notification cannot complete a request.** Its only action hands the URL to your
+browser. The Done button is the sole way to close one.
 
+Notifications need no libraries — each platform ships something that raises one.
+The only dependency is `pywin32` on Windows, used solely to write the Start Menu
+shortcut.
 
-### Notes on the design
+> **Windows: this creates a Start Menu entry.** On startup the server writes
+> `Machine in the loop.lnk`. Windows routes a notification click back to the app
+> that posted it, identified by an AppUserModelID; the only way an unpackaged app
+> can declare one is a Start Menu shortcut carrying that property. Without it the
+> toast shows and the click is dropped. This is what an ordinary installer does.
+>
+> The shortcut points at your interpreter and this repo, so it doubles as a
+> launcher. No paths are hardcoded — they are derived at startup, so moving the repo
+> repairs itself on the next run.
+>
+> Remove with `python main.py --uninstall-notifications`, or delete the `.lnk`.
+> Notifications keep working; only the click stops opening the page.
 
-- **In-memory.** `src/store.py` owns two module-level lists. Restarting wipes them, which is
-  correct for v0: a session is a sitting, not a record. Persistence is a v0.2 problem
-  and should not be a database when a JSONL file will do.
-- **Polling, not websockets.** The client polls every second. Against an in-memory store
-  on the same machine that is indistinguishable from a push, at a fraction of the machinery.
-- **This device only.** It binds `127.0.0.1`. Nothing off this machine can reach it,
-  which is why there is no auth to write and nothing to secure.
+Push to a phone is out of scope: it requires either exposing the server beyond this
+machine or relaying through a third party.
+
+### Design notes
+
+- **In-memory.** `src/store.py` owns two module-level lists. Restarting wipes them:
+  a session is a sitting, not a record.
+- **Polling, not websockets.** The client polls every second. Against a local
+  in-memory store that is indistinguishable from a push.
+- **This device only.** Binds `127.0.0.1`, so there is no auth to write.
 - **Use `127.0.0.1`, not `localhost`, from Python clients.** On Windows `localhost`
-  resolves to `::1` first and the IPv4 fallback costs about two seconds per call. The
-  examples already do this. Browsers are unaffected.
-- **One store, two surfaces.** `src/api.py` (HTTP) and `src/mcp_server.py` (MCP) are thin
-  adapters over `src/store.py`; neither touches the lists, so the rules cannot drift.
-- **No lock.** Everything is `async def` on one event-loop thread — which is also why the
-  MCP server is mounted rather than run as a second process: the long-poll wakes waiters
-  through an `asyncio.Event`, and that only works on a shared loop.
-- **Completion is idempotent.** A double-tap returns the existing record rather than
-  erroring, because the human's intent already landed.
+  resolves to `::1` first and the IPv4 fallback costs ~2s per call. Browsers are
+  unaffected.
+- **One store, two surfaces.** `src/api.py` and `src/mcp_server.py` are thin adapters
+  over `src/store.py`; neither touches the lists, so the rules cannot drift.
+- **No lock.** Everything is `async def` on one event-loop thread. This is also why
+  the MCP server is mounted rather than run as a second process: the long-poll wakes
+  waiters through an `asyncio.Event`, which requires a shared loop.
+- **Completion is idempotent.** A double-tap returns the existing record.
 
 ---
 
 ## Writing good requests
 
-This is most of the product. See [AGENT.md](AGENT.md) for the full controller
-contract; the short version:
+See [AGENT.md](AGENT.md) for the full controller contract.
 
 - **One physical act per request.** "Tidy the kitchen" is a project. "Put the mugs in
   the dishwasher" is a request.
 - **Observable completion.** The human must know, without deciding, when to press the
   button.
-- **Issue one at a time.** The queue is visible but the screen is not. Dumping twelve
-  requests turns it back into a todo list, which is the thing you were escaping.
-- **Latency is data.** `issued_at` vs `completed_at` tells the controller what was
-  hard and what was avoided. That signal is the whole reason to time-stamp anything.
+- **Issue one at a time.** Dumping twelve requests rebuilds a todo list.
+- **Latency is data.** `elapsed_seconds` distinguishes what was hard from what was
+  avoided.
 
 ---
 
-## Safety, briefly
+## Safety
 
-The subject is a person, so the controller has limits that a `bash` tool does not:
+The subject is a person, so the controller has limits a `bash` tool does not:
 
-- **Consent is per-session and revocable.** Closing the tab ends it. Ctrl-C ends it harder.
+- **Consent is per-session and revocable.** Closing the tab ends it; Ctrl-C ends it
+  harder.
 - **Never issue anything that can injure**, or anything medical, financial, legal, or
-  ingestible. Not "take 400mg of ibuprofen", not "send £200 to X".
+  ingestible.
 - **Never issue anything irreversible or outward-facing** on the subject's behalf —
-  sending messages, posting, deleting, buying.
-- **Pressure is out of scope.** No streaks, no shaming copy, no escalation when a
-  request goes unanswered. An unanswered request is information, not disobedience.
+  sending, posting, deleting, buying.
+- **No pressure.** No streaks, no shaming copy, no escalation when a request goes
+  unanswered. An unanswered request is information, not disobedience.
 
 If you point this at someone other than yourself, they get the button and you get the
-keyboard — never the reverse without them agreeing to it first, out loud, that session.
+keyboard — not the reverse, and not without their agreement that session.
 
 ---
 
 ## Roadmap
 
-v0 is one button on purpose. The next honest increments:
-
-- [ ] **"Can't do this"** — the refusal path, with a reason string the controller reads.
-      This is the most important missing piece; right now an unwanted request can only
-      be ignored.
-- [ ] **Observations** — let the human send text back, so the agent can ask questions,
-      not just give orders.
+- [ ] **"Can't do this"** — a refusal path with a reason string the controller reads.
+      Currently an unwanted request can only be ignored.
+- [ ] **Observations** — let the human send text back, so the agent can ask questions.
 - [ ] **Photos** — `<input type="file" capture="environment">` closes the perception
-      loop and needs no native app.
-- [x] **A real MCP server** — mounted into the same app; any MCP client is a controller.
+      loop without a native app.
 - [ ] **Persistence** — JSONL append log, so sessions can be reviewed afterwards.
+- [x] **MCP server** — mounted into the same app.
 - [x] **Waking the controller** — `/api/completions` long-polls instead of spinning.
-- [x] **Waking the human** — chime, vibration, and a desktop notification, all local.
-
+- [x] **Waking the human** — chime, vibration, and OS notifications, all local.
