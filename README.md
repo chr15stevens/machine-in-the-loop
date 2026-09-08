@@ -1,11 +1,24 @@
 # Machine in the loop
 
-**Human-in-the-loop, inverted. The model runs the loop; you are the hands.**
+**Human-in-the-loop, inverted: the agent plans and directs, the human executes.**
 
-An agent issues a request, it appears on screen in large type, and you press one
-button when it is done. The agent's tool is a person: high-latency, refusable, and
-with state it cannot read. It has to decompose goals into single physical acts and
-cope with a tool that takes minutes to return.
+Conventional human-in-the-loop designs place the person above the agent, as approver
+and supervisor. This inverts that relationship. The agent holds the plan and issues
+requests; the human is an effector it calls and waits on. Mechanically: a request
+appears on screen in large type, and the human presses one button when it is done.
+
+**Hypothesis.** An agent that cannot act in the physical world spends planning
+capacity on that boundary — recognising what it cannot do, hedging around it,
+restructuring goals to avoid it, or declining outright. Delegating those actions to
+an executor that can actually perform them should remove the overhead and free
+capacity for higher-level planning. The intent is to grant the agent more autonomy,
+not less: it owns the plan, and the constraint it was working around is gone.
+
+This makes the human a tool with unusual properties — latency in minutes rather than
+milliseconds, non-deterministic, refusable, and holding state the agent cannot read.
+Planning against it requires decomposing goals into single physical acts, sequencing
+them, and treating latency as the only feedback signal. This repo is the minimal
+apparatus for testing whether that trade is worth making.
 
 ---
 
